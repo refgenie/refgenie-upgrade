@@ -1,0 +1,26 @@
+[build-system]
+requires = ["uv_build>=0.12.1"]
+build-backend = "uv_build"
+
+[project]
+name = "refgenie-upgrade"
+version = "0.1.0"
+description = "Migrate legacy refgenie installations to refgenie1"
+license = "BSD-2-Clause"
+license-files = ["LICENSE.txt"]
+requires-python = ">=3.11"
+dependencies = [
+    "refgenie>=1.0.0a1",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+]
+
+[project.scripts]
+refgenie-upgrade = "refgenie_upgrade.cli:main"
+
+[tool.uv.build-backend]
+# Flat layout: module is at root level, not in src/
+module-root = ""
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
