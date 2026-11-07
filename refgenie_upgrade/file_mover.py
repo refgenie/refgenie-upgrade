@@ -175,7 +175,7 @@ def execute_transfer(plan: FileTransferPlan) -> FileTransferResult:
             if plan.mode == TransferMode.COPY:
                 shutil.copy2(src_file, dst_file)
             elif plan.mode == TransferMode.MOVE:
-                shutil.move(str(src_file), str(dst_file))
+                _move_file(src_file, dst_file)
             elif plan.mode == TransferMode.SYMLINK:
                 os.symlink(src_file.resolve(), dst_file)
 
@@ -187,6 +187,21 @@ def execute_transfer(plan: FileTransferPlan) -> FileTransferResult:
             success=False,
             error=f"{type(e).__name__}: {e}",
         )
+
+
+def _move_file(src_file: Path, dst_file: Path) -> None:
+    """Move one file; a symlink is replaced by the bytes it points to.
+
+    Legacy refgenie links some files across assets by absolute path
+    (bwa_index/<d>.fa -> fasta/<d>.fa). Moving the link itself would leave it
+    dangling once its target is moved too, so land the real bytes and drop the
+    link. content_digest already hashes such files by their target's bytes.
+    """
+    if src_file.is_symlink():
+        shutil.copy2(src_file, dst_file)
+        src_file.unlink()
+    else:
+        shutil.move(str(src_file), str(dst_file))
 
 
 def resolve_legacy_asset_dir(
