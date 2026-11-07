@@ -5,6 +5,9 @@ Falls back to computing the seqcol digest from a FASTA file if one is
 available on disk.
 """
 
+import tempfile
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -51,6 +54,20 @@ def _find_fasta_file(genome_folder: Path, hex_digest: str) -> Path | None:
     return None
 
 
+@contextmanager
+def fasta_view(fasta_path: Path) -> Iterator[Path]:
+    """Yield a symlink to ``fasta_path`` inside a throwaway temp folder.
+
+    gtars writes a ``<stem>.rgsi`` index next to the FASTA path it reads.
+    Reading through this link keeps that file out of the legacy genome folder,
+    which --symlink and --copy must leave untouched.
+    """
+    with tempfile.TemporaryDirectory(prefix="refgenie-upgrade-fasta-") as tmp:
+        link = Path(tmp) / fasta_path.name
+        link.symlink_to(fasta_path.resolve())
+        yield link
+
+
 def _compute_seqcol_digest(fasta_path: Path) -> str | None:
     """Compute the GA4GH seqcol digest from a FASTA file.
 
@@ -72,7 +89,10 @@ def _compute_seqcol_digest(fasta_path: Path) -> str | None:
                 store.set_quiet(True)
             except AttributeError:
                 pass
-            metadata, _was_new = store.add_sequence_collection_from_fasta(str(fasta_path))
+            with fasta_view(fasta_path) as fasta_link:
+                metadata, _was_new = store.add_sequence_collection_from_fasta(
+                    str(fasta_link)
+                )
             if metadata is not None and metadata.digest:
                 return metadata.digest
     except ImportError:
