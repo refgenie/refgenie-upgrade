@@ -12,7 +12,11 @@ from pathlib import Path
 from rich.console import Console
 
 from refgenie_upgrade.config_parser import LegacyConfig, LegacyGenome, parse_legacy_config
-from refgenie_upgrade.digest_resolver import _find_fasta_file, resolve_genome_digest
+from refgenie_upgrade.digest_resolver import (
+    _find_fasta_file,
+    fasta_view,
+    resolve_genome_digest,
+)
 from refgenie_upgrade.file_mover import (
     FileTransferPlan,
     TransferMode,
@@ -170,12 +174,13 @@ def _migrate_genome(
             # the store (loading the collection so StoreAliasManager resolves),
             # inserts the genome row, and repairs aliases when it already exists.
             try:
-                digest_out, _created = rgc.genome.initialize_genome(
-                    fasta_file_path=fasta_path,
-                    description=genome.description or "",
-                    alias_names=genome.aliases,
-                    use_existing=True,
-                )
+                with fasta_view(fasta_path) as fasta_link:
+                    digest_out, _created = rgc.genome.initialize_genome(
+                        fasta_file_path=fasta_link,
+                        description=genome.description or "",
+                        alias_names=genome.aliases,
+                        use_existing=True,
+                    )
             except Exception as e:
                 result.errors.append(
                     f"Genome {alias_display}: FASTA import failed: {e}"
