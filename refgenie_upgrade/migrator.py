@@ -222,8 +222,9 @@ def _migrate_genome(
             result.warnings.append(warning)
             console.print(f"  [yellow]{warning}[/yellow]")
 
-    # Migrate each asset
-    for asset in genome.assets:
+    # Migrate fasta last: legacy indexes link to its file (bwa_index/<d>.fa), and
+    # with --move the link must be copied before the FASTA itself is moved away.
+    for asset in sorted(genome.assets, key=lambda a: a.name == "fasta"):
         for tag in asset.tags:
             _migrate_asset_tag(
                 rgc=rgc,
