@@ -87,6 +87,15 @@ def _init_refgenie1(target_dir: Path, db_path: Path | None = None):
     return rgc, genome_folder, db_config_path
 
 
+#: Version of the placeholder asset classes registered for legacy assets. It
+#: must sort below every real asset class version: recipes name their output
+#: class without a version and get the latest one, and a data-channel sync
+#: skips a name+version that already exists. At "0.1.0" the empty placeholder
+#: collided with the registry's fasta/bwa_index 0.1.0, so the registry class was
+#: never added and new builds got no seek keys.
+LEGACY_ASSET_CLASS_VERSION = "0.0.0"
+
+
 def _ensure_asset_class(rgc, asset_name: str) -> None:
     """Ensure an asset class exists for the given asset name.
 
@@ -104,7 +113,7 @@ def _ensure_asset_class(rgc, asset_name: str) -> None:
 
     ac = AssetClass(
         name=asset_name,
-        version="0.1.0",
+        version=LEGACY_ASSET_CLASS_VERSION,
         description=f"Legacy asset class for '{asset_name}' (migrated from refgenie v0)",
         serving_modes=["archive"],
     )
