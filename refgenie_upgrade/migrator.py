@@ -300,6 +300,27 @@ def _infer_seek_key_type(content_dir: Path, value: str):
     return SeekKeyType.string
 
 
+#: refgenie 0.x gave every asset an implicit "dir" seek key (value ".").
+_LEGACY_DIR_KEY = "dir"
+
+
+def _seek_keys_for_v1(asset_name: str, legacy_seek_keys) -> dict[str, str]:
+    """Map legacy seek keys to refgenie1 ones (name -> legacy value).
+
+    refgenie1 has no implicit ``.dir`` key (see the migration reference), so the
+    legacy ``dir: .`` entry is dropped whenever the asset has other keys. An
+    asset whose only key is ``dir`` (e.g. a custom ``refgenie add`` folder)
+    keeps it as its main key, named like the asset, so it stays seekable as
+    ``<genome>/<asset>``.
+    """
+    keys = {sk.name: sk.value for sk in legacy_seek_keys}
+    if _LEGACY_DIR_KEY in keys and len(keys) > 1:
+        del keys[_LEGACY_DIR_KEY]
+    elif _LEGACY_DIR_KEY in keys and asset_name not in keys:
+        keys[asset_name] = keys.pop(_LEGACY_DIR_KEY)
+    return keys
+
+
 def _migrate_asset_tag(
     rgc,
     genome,
@@ -404,9 +425,9 @@ def _migrate_asset_tag(
     # a proper path type from the transferred content so seek returns a file path
     # rather than the bare string.
     custom_seek_keys = {}
-    for sk in tag.seek_keys:
-        value = sk.value.replace(legacy_hex, ga4gh_digest)
-        custom_seek_keys[sk.name] = (value, _infer_seek_key_type(dest_dir, value))
+    for name, raw in _seek_keys_for_v1(asset_name, tag.seek_keys).items():
+        value = raw.replace(legacy_hex, ga4gh_digest)
+        custom_seek_keys[name] = (value, _infer_seek_key_type(dest_dir, value))
 
     # Register the asset in refgenie1
     try:
